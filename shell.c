@@ -4,8 +4,6 @@
 #include<sys/wait.h>
 #include<string.h>
 
-
-
 #define  MAX_CMD_CNT 100
 #define  MAX_CMD_LEN 40
 #define  MAX_ARG_CNT 10
@@ -30,110 +28,101 @@ int pipes[MAX_CMD_CNT][2];	//Not used
 		>=1:   number of cmds in the input
 
 */
-int process_args1(char *argv, char prog[MAX_CMD_CNT][MAX_CMD_LEN], char cmd_args[MAX_CMD_CNT][MAX_ARG_CNT][MAX_ARG_LEN]){
-	char delt[ ] = " ";
-	int cmd_idx = 0;
-	int arg_idx = 0;
-	char *tok;
-	int  new_cmd = 0;
- 
-        printf("Input is %s\n",argv); 
-	tok=strtok(argv, delt);	
-	strcpy(prog[cmd_idx], tok);
-	while(tok = strtok(NULL, delt)) {		// Changed strtok(NULL, delt) to strtok(argv, delt)
-		if(strcmp(tok, "|") == 0) {
-			cmd_args[cmd_idx][arg_idx][0] = (char)0;
-			cmd_idx++;
-			arg_idx = 0;
-			new_cmd = 1;
-		} else {
-			if(new_cmd == 1 ) {
-				strcpy(prog[cmd_idx],tok);
-				new_cmd = 0;
-			} else{
-				strcpy(cmd_args[cmd_idx][arg_idx],tok);
-				arg_idx++;
-			}
-		} 
-	}
-  
-	cmd_args[cmd_idx][arg_idx][0] = (char)0;
-	return cmd_idx;
-}
-
-
-
-int  process_args( char *argv, char prog[MAX_CMD_CNT][MAX_CMD_LEN], char cmd_args[MAX_CMD_CNT][MAX_ARG_CNT][MAX_ARG_LEN]){
-
-   //Todo
-   char delt[ ] = " ";
-   int cmd_idx = 0;
-   int arg_idx = 0;
-   char *tok;
-   int  new_cmd = 0;
-
-   tok=strtok( argv, delt);
-   strcpy(prog[cmd_idx],tok);
-   while( tok = strtok( NULL,delt) ){
-     if( strcmp(tok, "|") == 0 ){
-          cmd_args[cmd_idx][arg_idx][0]=(char)0;
-          cmd_idx++;
-          arg_idx = 0;
-          new_cmd = 1;
-      }else{
-         if( new_cmd == 1 ){
-             strcpy(prog[cmd_idx],tok);
-             new_cmd = 0;
-         }else{
+int  process_args(char *argv, char prog[MAX_CMD_CNT][MAX_CMD_LEN], char cmd_args[MAX_CMD_CNT][MAX_ARG_CNT][MAX_ARG_LEN]){
+    char delt[ ] = " ";
+    int cmd_idx = 0;
+    int arg_idx = 0;
+    char *tok;
+    int  new_cmd = 0;
+    
+    // tok is a char* that goes from the first character to the first space
+    //  - most likely, will be "ls"
+    tok = strtok(argv, delt);
+    strcpy(prog[cmd_idx], tok);     // Copies "ls" to prog[0] (prog[] holds the commands)
+    
+    while((tok = strtok(NULL, delt))) {
+        // If the pipe character is the next "string"...
+        if (strcmp(tok, "^") == 0) {
+            // Place a '0' at the next argument for the current command
+            cmd_args[cmd_idx][arg_idx][0] = (char)0;
+            cmd_idx++;      // Move onto next command after the pipe
+            arg_idx = 0;    // Add arguments at the 0th position now
+            new_cmd = 1;
+        } else {
+            // New command, add next string token to prog[]
+            if(new_cmd == 1) {
+                strcpy(prog[cmd_idx], tok);
+                new_cmd = 0;
+            } else {
+                // Not a command, so must be an argument
                 strcpy(cmd_args[cmd_idx][arg_idx],tok);
                 arg_idx++;
+            }
         }
-     }
-   }
-
-  cmd_args[cmd_idx][arg_idx][0]=(char)0;
-  return cmd_idx;
+    }
+    
+    // Add a 0 to the end of the current cmd argument to signal the end
+    cmd_args[cmd_idx][arg_idx][0] = (char)0;
+    return cmd_idx;
 }
 
-
-
-void exec_cmd_pipe(char *cmd, char *args, int fd[]) {
-    dup2(fd[1] ,1);	// redirect output	
-    dup2(fd[0] ,0);	// redirect input
-
-    //Replace this later to handle cmd and args
-    // char *args;
-    // scanf(" %d", &args);
-    char *args1[ ] = {"ls", "ls", "-l", NULL};
+void exec_cmd_pipe(char *cmd, char *arguments[], int fd[]) {
+    dup2(fd[1] ,1);     // redirect output
+    dup2(fd[0] ,0);     // redirect input
+    
+    // Change this later
+    char *args1[ ] = {"ls", "ls", NULL};
     char *cmd1 = "ls";
+    printf("Command: %s\n", cmd);
+    
+    // execvp(cmd, args)
+    //  - cmd is a "string" that contains the name of file to be executed
+    //  - args is a char**
     execvp(cmd1, args1);
+    // execvp(cmd, arguments);
 }
 
 
-void main( int argc, char *argv[ ] ) {
-	int cmd_cnt = 0;
-	int pid = 0;
-	int child_pid[MAX_CMD_CNT];
-	int i, status;
-	int fd[2];
-        char inputs[100];
+int main( int argc, char *argv[ ] ) {
+    int cmd_cnt = 0;
+    int pid = 0;
+    int child_pid[MAX_CMD_CNT];
+    int i, status;
+    int fd[2];
+    char inputs[100];
 
-     strcpy(inputs, argv[1]);
-     printf("argv is %s\n",argv[1]);  	
-     cmd_cnt = process_args( inputs, cmds, cmd_args);
-	if( cmd_cnt == 0 ) {
+    strcpy(inputs, argv[1]);
+    cmd_cnt = process_args(inputs, cmds, cmd_args);
+//    printf("argv is %s\n", argv[1]);     // Used for debugging
+    
+    
+    // Display the commands and arguments
+    // Used for debugging
+//    for(i = 0; i <= cmd_cnt; i++) {
+//        printf("The %d command is: ", i);
+//        printf("%s\n", cmds[i]);
+//        int arg_index = 0;
+//        char *curr_arg = cmd_args[i][arg_index];
+//        
+//        while (curr_arg[0] != (char)0) {
+//            printf("The argument is: %s\n", curr_arg);
+//            arg_index++;
+//            curr_arg = cmd_args[i][arg_index];
+//        }
+//    }
+    
+    if( cmd_cnt == 0 ) {
 		printf("fail to get user input\n");
-		return;
+		return -1;
 	}
 
 	//Create the pipe
 	pipe(fd);	// Use the file descriptors (fd[]) later for exec_cmd_pipe
 
 	//fork a child process for each cmd
-	for( i = 0; i < cmd_cnt; i++ ) {
+	for(i = 0; i <= cmd_cnt; i++) {
 		pid = fork();
-		if( pid == 0 ) {    //Child process
-		  //exec_cmd_pipe(char *cmd, char *args, int fd[])
+		if(pid == 0) {      //Child process
 		  exec_cmd_pipe(cmds[i], cmd_args[i], fd);
 		}else {             //Parent process
 		  child_pid[i] = pid;
@@ -146,4 +135,5 @@ void main( int argc, char *argv[ ] ) {
 	}
 
 	printf("Shell is done. \n" );
+    return 0;
 }
