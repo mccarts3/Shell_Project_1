@@ -66,20 +66,16 @@ int  process_args(char *argv, char prog[MAX_CMD_CNT][MAX_CMD_LEN], char cmd_args
     return cmd_idx;
 }
 
-void exec_cmd_pipe(char *cmd, char *arguments[], int fd[]) {
-    dup2(fd[1] ,1);     // redirect output
-    dup2(fd[0] ,0);     // redirect input
+void exec_cmd_pipe(char *cmd, char *args, int fd[]) {
+    dup2(fd[0], 0);     // redirect input using 1 (equal to constant STDIN_FILENO
+    dup2(fd[1], 1);     // redirect output using 0 (equal to constant STDOUT_FILENO
     
-    // Change this later
-    char *args1[ ] = {"ls", "ls", NULL};
-    char *cmd1 = "ls";
-    printf("Command: %s\n", cmd);
+    char *arguments[] = {cmd, args, NULL};
     
     // execvp(cmd, args)
     //  - cmd is a "string" that contains the name of file to be executed
     //  - args is a char**
-    execvp(cmd1, args1);
-    // execvp(cmd, arguments);
+    execvp(cmd, arguments);
 }
 
 
@@ -93,8 +89,6 @@ int main( int argc, char *argv[ ] ) {
 
     strcpy(inputs, argv[1]);
     cmd_cnt = process_args(inputs, cmds, cmd_args);
-//    printf("argv is %s\n", argv[1]);     // Used for debugging
-    
     
     // Display the commands and arguments
     // Used for debugging
@@ -124,13 +118,13 @@ int main( int argc, char *argv[ ] ) {
 		pid = fork();
 		if(pid == 0) {      //Child process
 		  exec_cmd_pipe(cmds[i], cmd_args[i], fd);
-		}else {             //Parent process
+		} else {             //Parent process
 		  child_pid[i] = pid;
 		}
 	}
 
 	for( i = 0 ; i < cmd_cnt; i++) {
-		pid = wait( &status);
+		pid = wait(&status);
 		printf("Child process %d is done\n", pid);
 	}
 
