@@ -66,16 +66,23 @@ int  process_args(char *argv, char prog[MAX_CMD_CNT][MAX_CMD_LEN], char cmd_args
     return cmd_idx;
 }
 
-void exec_cmd_pipe(char *cmd, char *args, int fd[]) {
-    dup2(fd[0], 0);     // redirect input using 1 (equal to constant STDIN_FILENO
-    dup2(fd[1], 1);     // redirect output using 0 (equal to constant STDOUT_FILENO
-    
+void exec_cmd_pipe(char *cmd, char *args, int fd[], int i) {
     char *arguments[] = {cmd, args, NULL};
     
     // execvp(cmd, args)
     //  - cmd is a "string" that contains the name of file to be executed
     //  - args is a char**
-    execvp(cmd, arguments);
+    if(i == 0) {
+        dup2(fd[1], 1);
+        close(fd[0]);
+        execvp(cmd, arguments);
+    } else if(i == 1) {
+        dup2(fd[0], 0);
+        close(fd[1]);
+        execvp(cmd, arguments);
+    } else {
+        printf("Error, unintended process created.\n");
+    }
 }
 
 
@@ -117,11 +124,14 @@ int main( int argc, char *argv[ ] ) {
 	for(i = 0; i <= cmd_cnt; i++) {
 		pid = fork();
 		if(pid == 0) {      //Child process
-		  exec_cmd_pipe(cmds[i], cmd_args[i], fd);
+		  exec_cmd_pipe(cmds[i], cmd_args[i], fd, i);       // Send i to know which child process
 		} else {             //Parent process
 		  child_pid[i] = pid;
 		}
 	}
+    
+    close(fd[0]);
+    close(fd[1]);
 
 	for( i = 0 ; i < cmd_cnt; i++) {
 		pid = wait(&status);
