@@ -80,6 +80,7 @@ void exec_cmd_pipe(char *cmd, char *args, int fd[], int i) {
         dup2(fd[0], 0);
         close(fd[1]);
         execvp(cmd, arguments);
+        // For more than two commands, open fd[1] and use this block of code again
     } else {
         printf("Error, unintended process created.\n");
     }
