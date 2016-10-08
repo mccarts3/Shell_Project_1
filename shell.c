@@ -66,7 +66,7 @@ int  process_args(char *argv, char prog[MAX_CMD_CNT][MAX_CMD_LEN], char cmd_args
     return cmd_idx;
 }
 
-void exec_cmd_pipe(char *cmd, char *args, int fd[], int i) {
+void exec_cmd_pipe(char *cmd, char *args, int fd[], int i, int cmd_cnt) {
     char *arguments[] = {cmd, args, NULL};
     
     // execvp(cmd, args)
@@ -76,11 +76,16 @@ void exec_cmd_pipe(char *cmd, char *args, int fd[], int i) {
         dup2(fd[1], 1);
         close(fd[0]);
         execvp(cmd, arguments);
-    } else if(i == 1) {
+    } else if(i >= 1 && i < cmd_cnt) {
+        close(fd[1]);
+        dup2(fd[0], 0);
+        dup2(fd[1], 1);
+        execvp(cmd, arguments);
+        // For more than two commands, open fd[1] and use this block of code again
+    } else if(i >= cmd_cnt) {
         dup2(fd[0], 0);
         close(fd[1]);
         execvp(cmd, arguments);
-        // For more than two commands, open fd[1] and use this block of code again
     } else {
         printf("Error, unintended process created.\n");
     }
@@ -125,7 +130,7 @@ int main( int argc, char *argv[ ] ) {
 	for(i = 0; i <= cmd_cnt; i++) {
 		pid = fork();
 		if(pid == 0) {      //Child process
-		  exec_cmd_pipe(cmds[i], cmd_args[i], fd, i);       // Send i to know which child process
+		  exec_cmd_pipe(cmds[i], cmd_args[i], fd, i, cmd_cnt);       // Send i to know which child process
 		} else {             //Parent process
 		  child_pid[i] = pid;
 		}
